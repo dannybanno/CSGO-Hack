@@ -571,7 +571,7 @@ void gui::Render() noexcept
 				ImGui::TableNextRow();
 
 				ImGui::TableSetColumnIndex(0);
-				if (i = 1) {
+				if (i == 0) {
 					ImGui::SliderInt("FOV", &globals::playerFOV, 40, 200);
 				}
 				else {
