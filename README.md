@@ -1,13 +1,17 @@
-# CSGO Legacy Cheat using [cazz's Internal Based](https://github.com/cazzwastaken/based)
+# 🧨 CSGO Legacy Cheat using [cazz's Internal Based](https://github.com/cazzwastaken/based) 🔫
+# ✨ About
+#### A basic and my first internal cheat for CSGO Legacy (the old one) utilizing netvars, interfaces and many more features... 
 
+# 🛠 Usage
+- ##### Clone the repository or Download the Zip
+- ##### Open in ```Visual Studio``` and Build in ```Release x86```
 
-
-##### ```Open in Visual Studio and Build in Release x86```
+# 📸 Preview
 
 <center><img align="center" src="https://i.imgur.com/dH1JuyA.png" width="708" height="460"></center>
 <center><img align="center" src="https://i.imgur.com/OYWqM11.jpg" width="708" height="400"></center>
 
-## Features
+# 📋 Features
 <details>
 <summary>Visuals</summary>
   <details>
