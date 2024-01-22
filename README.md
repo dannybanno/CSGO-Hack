@@ -8,8 +8,8 @@
 
 # 📸 Preview
 
-<center><img align="center" src="https://i.imgur.com/dH1JuyA.png" width="708" height="460"></center>
-<center><img align="center" src="https://i.imgur.com/OYWqM11.jpg" width="708" height="400"></center>
+<center><img align="center" src="https://i.imgur.com/k8qVMJd.png" width="708" height="460"></center>
+<center><img align="center" src="https://i.imgur.com/xNKzKHd.jpg" width="708" height="400"></center>
 
 # 📋 Features
 <details>
