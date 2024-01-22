@@ -12,6 +12,21 @@ class CVector
 {
 public:
 
+	CVector& operator-=(const CVector& other) noexcept
+	{
+		x -= other.x;
+		y -= other.y;
+		z -= other.z;
+		return *this;
+	}
+
+	CVector& operator+=(const CVector& other) noexcept {
+		x += other.x;
+		y += other.y;
+		z += other.z;
+		return *this;
+	}
+
 	constexpr CVector operator-(const CVector& other) const noexcept
 	{
 		return { x - other.x, y - other.y, z - other.z };

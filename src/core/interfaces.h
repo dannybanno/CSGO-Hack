@@ -16,6 +16,7 @@
 #include "../valve/ivengineclient.h"
 #include "../valve/ivmodelinfo.h"
 #include "../valve/ivpanel.h"
+#include "../valve/cinput.h"
 
 // learn more about interfaces -> https://www.youtube.com/watch?v=C0wGdwnaArA
 namespace interfaces
@@ -42,6 +43,8 @@ namespace interfaces
 	inline IVEngineClient* engine = nullptr;
 	inline IVModelInfo* modelInfo = nullptr;
 	inline IVPanel* panel = nullptr;
+	//inline CViewSetup* setup = nullptr;
+	inline CInput* input = nullptr;
 
 	// other
 	inline void* keyValuesSystem = nullptr;

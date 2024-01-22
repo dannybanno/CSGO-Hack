@@ -165,6 +165,7 @@ namespace IMGUI_STB_NAMESPACE
 #else
 #include "imstb_truetype.h"
 #endif
+#include "imgui_notify.h"
 #endif
 #endif // IMGUI_ENABLE_STB_TRUETYPE
 
@@ -317,9 +318,15 @@ void ImGui::StyleColorsLight(ImGuiStyle* dst)
     ImGuiIO& io = ImGui::GetIO();
     //io.Fonts->AddFontFromFileTTF("C:/Users/danny/Downloads/borderless-imgui-window-main/borderless-imgui-window-main/imgui/Fonts/Montserrat-Regular.ttf", 23.500f);
 
-    io.Fonts->AddFontFromMemoryTTF(montserat, sizeof(montserat), 25.25f);
-    io.Fonts->AddFontFromMemoryTTF(montserat, sizeof(montserat), 37.25f);
-    io.Fonts->AddFontFromMemoryTTF(quicksand, sizeof(quicksand), 26.25f);
+    ImFontConfig font_cfg;
+    font_cfg.FontDataOwnedByAtlas = false;
+
+    io.Fonts->AddFontFromMemoryTTF(montserat, sizeof(montserat), 25.25f, &font_cfg);
+    ImGui::MergeIconsWithLatestFont(25.25f, false);
+    io.Fonts->AddFontFromMemoryTTF(montserat, sizeof(montserat), 37.25f, &font_cfg);
+    ImGui::MergeIconsWithLatestFont(37.25f, false);
+    io.Fonts->AddFontFromMemoryTTF(quicksand, sizeof(quicksand), 26.25f, &font_cfg);
+    ImGui::MergeIconsWithLatestFont(26.25f, false);
 
     style->WindowPadding = ImVec2(20, 20);
     style->WindowRounding = 5.0f;
@@ -335,7 +342,7 @@ void ImGui::StyleColorsLight(ImGuiStyle* dst)
 
     style->Colors[ImGuiCol_Text] = ImVec4(0.80f, 0.80f, 0.83f, 1.00f);
     style->Colors[ImGuiCol_TextDisabled] = ImVec4(0.24f, 0.23f, 0.29f, 1.00f);
-    style->Colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.05f, 0.07f, 0.65f);
+    style->Colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.05f, 0.07f, 1.f);
     style->Colors[ImGuiCol_PopupBg] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
     style->Colors[ImGuiCol_BorderShadow] = ImVec4(0.92f, 0.91f, 0.88f, 0.00f);
     style->Colors[ImGuiCol_FrameBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);

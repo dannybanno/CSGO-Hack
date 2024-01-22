@@ -20,6 +20,8 @@ void interfaces::Setup() noexcept
 	engine = Capture<IVEngineClient>("engine.dll", "VEngineClient014");
 	modelInfo = Capture<IVModelInfo>("engine.dll", "VModelInfoClient004");
 	panel = Capture<IVPanel>("vgui2.dll", "VGUI_Panel009");
+	input = **reinterpret_cast<CInput***>((*reinterpret_cast<unsigned int**>(client))[10] + 5);
+	//input = *(CInput**)((*(DWORD**)client)[15] + 1);
 
 	// get the exported KeyValuesSystem function
 	if (const HINSTANCE handle = GetModuleHandle("vstdlib.dll"))

@@ -66,4 +66,11 @@ namespace hooks
 	inline PaintTraverseFn PaintTraverseOriginal = nullptr;
 	void __stdcall PaintTraverse(std::uintptr_t vguiPanel, bool forceRepaint, bool allowForce) noexcept;
 
+	//using OverrideViewFn = void(__thiscall*)(void*, ViewSetup*) noexcept;
+	//inline OverrideViewFn OverrideViewOriginal = nullptr;
+	//void __stdcall OverrideView(ViewSetup* setup) noexcept;
+
+	using FrameStageNotifyFn = void(__thiscall*)(void*, ClientFrameStage_t);
+	inline FrameStageNotifyFn FrameStageNotifyOriginal = nullptr;
+	void __stdcall FrameStageNotify(ClientFrameStage_t stage);
 }

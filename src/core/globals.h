@@ -11,10 +11,10 @@ namespace globals
 	extern float distanceBetweenPlayer;
 
 	//bools
-	extern bool visualBool[5];		//visuals
+	extern bool visualBool[6];		//visuals
 	extern bool settingsBool[3];	//settings
 	extern bool movementBool[3];	//movemnt
-	extern bool weaponBool[3];		//movemnt
+	extern bool weaponBool[3];		//weapon
 	extern bool miscBool[1];		//misc
 
 	//misc
@@ -23,6 +23,8 @@ namespace globals
 
 	//weapons
 	extern bool bFOVCirlce;
+	extern bool bSilentAim;
+	extern bool bTargetThreat;
 	extern const char* target[];
 	extern int selectedTarget;
 	extern int selectedBone;
@@ -59,3 +61,5 @@ namespace globals
 
 	extern float aimFOV;
 }
+
+

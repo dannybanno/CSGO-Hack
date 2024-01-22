@@ -3,6 +3,10 @@
 #include "../../ext/imgui/imgui.h"
 #include "../../ext/imgui/imgui_impl_win32.h"
 #include "../../ext/imgui/imgui_impl_dx9.h"
+#include "../../ext/imgui/imgui_toggle.h"
+
+#include "../../ext/imgui/imgui_notify.h"
+#include "../../ext/imgui/tahoma.h"
 
 #include <stdexcept>
 #include "fonts/font_awesome.h"
@@ -11,7 +15,400 @@
 #include "../core/interfaces.h"
 #include <string>
 #include <iostream>
-#include "../../ext/imgui/imgui_toggle.h"
+#include <algorithm>
+
+#include <vector>
+#include <fstream>
+#include "../menu/config/nlohmann/json.hpp"
+
+
+float globals::hidden[3] = { 1.f, 0.f, 0.f };
+float globals::visible[3] = { 0.f, 0.f, 1.f };
+float globals::chamsAlpha = 1.f;
+
+float globals::enemyColour[3] = { 1.f, 0.f, 0.f };
+float globals::teamColour[3] = { 0.f, 1.f, 0.f };
+
+float globals::wireColour[3] = { 1.f, 1.f, 1.f };
+
+float globals::aimFOV{ 20.f };
+
+//esp
+float globals::espColor[3] = { 1.f, 1.f, 1.f };
+float globals::boneColor[3] = { 1.f, 1.f, 1.f };
+
+//visuals
+bool globals::visualBool[6] = { false, false, false, false, false, false };
+bool globals::settingsBool[3] = { false, false, false };
+
+bool globals::bHealthBar = false;
+bool globals::bArmourBar = false;
+
+//movement
+bool globals::movementBool[3] = { false, false, false };
+
+//misc
+bool globals::miscBool[1] = { false };
+
+//weapon
+bool globals::weaponBool[3] = { false, false, false };
+
+bool globals::bSnaplines = false;
+bool globals::bHealthText = false;
+bool globals::bFOVCirlce = false;
+bool globals::bSilentAim = true;
+bool globals::bTargetThreat = false;
+
+bool globals::bwireRainbow = false;
+
+static ImVec4 mainColour = ImVec4(255, 0, 255, 0.86);
+
+static bool showMisc = false;
+static bool showVisuals = true;
+static bool showMovement = false;
+static bool showWeapon = false;
+
+//vis
+static bool chamsSetting = false;
+static bool espSetting = false;
+static bool boneESPSetting = false;
+static bool wireFrameSetting = false;
+static bool glowSetting = false;
+
+const char* globals::drawFromItems[] = { "Bottom", "Center" };
+int globals::selectedDrawFrom = 0;
+
+bool globals::boxes = false;
+bool globals::corners = false;
+
+const char* globals::diffStyles[] = { "Box Outline", "Corners" };
+int globals::selectedStyle = 0;
+
+int globals::cornerSize = 20;
+
+//movement
+static bool bhopSettings = false;
+
+//weapon
+static bool aimbotSetting = false;
+
+const char* globals::target[] = { "Head", "Neck", "Chest", "Hip", "L|Hand", "R|Hand", "L|Knee", "R|Knee", "L|Foot", "R|Foot" };
+int globals::selectedTarget = 0;
+int globals::selectedBone = 0;
+
+int globals::targetToBoneIndex[] = { 8, 7, 6, 70, 13, 43, 71, 78, 72, 79 };
+
+float globals::distanceBetweenPlayer = 0;
+
+int globals::playerFOV = 90;
+
+float globals::distanceAim = 500;
+
+const char* visualTitles[6] = { "Chams", "ESP", "Bone ESP", "Wire Frame", "Glow", "No Flash" };
+const char* movementTitles[3] = { "Bunny Hop", "Spinbot" };
+const char* weaponTitles[3] = { "Triggerbot", "Aimbot" };
+const char* miscTitles[1] = { "FOV" };
+
+bool bShowLogs = true;
+
+#define IM_PRINTFARGS(fmt_index) __attribute__((format(printf, fmt_index, fmt_index+1)))
+
+struct ExampleAppLog
+{
+	ImGuiTextBuffer     Buf;
+    ImGuiTextFilter     Filter;
+    ImVector<int>       LineOffsets;        
+    bool                ScrollToBottom;
+
+    void    Clear()     { Buf.clear(); LineOffsets.clear(); }
+
+	void AddLog(const char* prefix, const char* fmt, ...)
+	{
+		auto now = std::chrono::system_clock::now();
+		std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+
+		struct tm timeinfo;
+		localtime_s(&timeinfo, &now_c);
+		char timeStr[64];
+		strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
+
+		std::ostringstream logStream;
+		logStream << prefix << " | " << timeStr << " | ";
+
+		int old_size = Buf.size();
+
+		va_list args;
+		va_start(args, fmt);
+		logStream << fmt;
+
+		char buffer[1024];
+		vsnprintf(buffer, sizeof(buffer), logStream.str().c_str(), args);
+
+		va_end(args);
+
+		Buf.append(buffer);
+
+		int new_size = Buf.size();
+		if (old_size > 0 && Buf[old_size - 1] != '\n') {
+			LineOffsets.push_back(old_size);
+		}
+
+		// Save the offset of the start of the next line
+		if (new_size > old_size && Buf[new_size - 1] == '\n') {
+			LineOffsets.push_back(new_size);
+		}
+
+		ScrollToBottom = true;
+	}
+
+	void SaveLogsToFile(const char* filename)
+	{
+		std::ofstream file(filename);
+		if (!file.is_open())
+		{
+			return;
+		}
+
+		const char* buf_begin = Buf.begin();
+		const char* line = buf_begin;
+		for (int line_no = 0; line != NULL; line_no++)
+		{
+			const char* line_end = (line_no < LineOffsets.Size) ? buf_begin + LineOffsets[line_no] : NULL;
+			if (line_end)
+				file.write(line, line_end - line + 1); // Include the newline character
+			line = line_end && line_end[1] ? line_end + 1 : NULL;
+		}
+
+		file.close();
+	}
+
+	void    Draw(const char* title, bool* p_opened = NULL)
+	{
+		ImGui::SetNextWindowSize(ImVec2(450, 300));
+		ImGui::Begin(title, p_opened);
+		if (ImGui::Button("Clear")) Clear();
+		ImGui::SameLine();
+		bool copy = ImGui::Button("Copy");
+		ImGui::NewLine();
+		Filter.Draw("Filter", -100.0f);
+		ImGui::Separator();
+		ImGui::BeginChild("scrolling");
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 1));
+
+		if (copy) ImGui::LogToClipboard();
+
+		if (Filter.IsActive())
+		{
+			const char* buf_begin = Buf.begin();
+			const char* line = buf_begin;
+			for (int line_no = 0; line != NULL; line_no++)
+			{
+				const char* line_end = (line_no < LineOffsets.Size) ? buf_begin + LineOffsets[line_no] : NULL;
+				if (Filter.PassFilter(line, line_end))
+					ImGui::TextUnformatted(line, line_end);
+				line = line_end && line_end[1] ? line_end + 1 : NULL;
+			}
+		}
+		else
+		{
+			ImGui::TextUnformatted(Buf.begin());
+		}
+
+		if (ScrollToBottom)
+			ImGui::SetScrollY(1.0f);
+		ScrollToBottom = false;
+		ImGui::PopStyleVar();
+		ImGui::EndChild();
+		ImGui::End();
+	}
+};
+
+namespace config {
+	std::string path = "C:\\ProgramData\\fartClub_cfg";
+
+	//configs stored in list
+	std::vector<std::string> list;
+
+	int selectedConfig = 0;
+
+	template<typename Type>
+	void try_val(nlohmann::ordered_json& j, std::string name, Type& _value) {
+
+		if (name.empty())
+			return;
+
+		if (j.dump().find(name) == std::string::npos)
+			return;
+
+		j.at(name).get_to(_value);
+	}
+
+	bool refresh() {
+		if (!std::filesystem::exists(path))
+			std::filesystem::create_directory(path);
+
+		list.clear();
+		selectedConfig = 0;
+
+		for (auto file : std::filesystem::directory_iterator(path)) {
+
+			//narrow down to "name.json"
+			//narrow down to just "name"
+			std::string file_name = file.path().filename().string();
+
+			if (size_t location = file_name.find(".json"); location != std::string::npos)
+				file_name.replace(file_name.begin() + location, file_name.end(), "");
+
+			if (!file_name.empty())
+				list.push_back(file_name);
+
+			printf("%s\n", file_name.c_str());
+
+		}
+
+		return true;
+	}
+
+	bool load(std::string name) {
+		if (name.empty())
+			return false;
+
+		auto _path = std::string(path) + "\\" + name + ".json";
+
+		if (!std::filesystem::exists(_path))
+			return false;
+
+		std::ifstream read_stream(_path);
+		nlohmann::ordered_json j = nlohmann::ordered_json::parse(read_stream, 0, false);
+
+		try_val(j, "chams", globals::visualBool[0]);
+		try_val(j, "chams_vis", globals::visible);
+		try_val(j, "chams_hid", globals::hidden);
+		try_val(j, "chams_alph", globals::chamsAlpha);
+
+		try_val(j, "esp", globals::visualBool[1]);
+		try_val(j, "esp_clr", globals::espColor);
+		try_val(j, "esp_hp_bar", globals::bHealthBar);
+		try_val(j, "esp_arm_bar", globals::bArmourBar);
+		try_val(j, "esp_text", globals::bHealthText);
+		try_val(j, "esp_draw_from", globals::selectedDrawFrom);
+		try_val(j, "esp_box", globals::selectedStyle);
+		try_val(j, "esp_corner", globals::cornerSize);
+		try_val(j, "esp_snaplines", globals::bSnaplines);
+
+		try_val(j, "bones", globals::visualBool[2]);
+		try_val(j, "bones_clr", globals::boneColor);
+
+		try_val(j, "wireframe", globals::visualBool[3]);
+		try_val(j, "wireframe_rbow", globals::bwireRainbow);
+		try_val(j, "wireframe_clr", globals::wireColour);
+
+		try_val(j, "glow", globals::visualBool[4]);
+		try_val(j, "glow_en_clr", globals::enemyColour);
+		try_val(j, "glow_tm_clr", globals::teamColour);
+
+		try_val(j, "flash", globals::visualBool[5]);
+
+		try_val(j, "bunny", globals::movementBool[0]);
+		try_val(j, "spin", globals::movementBool[1]);
+
+		try_val(j, "triggerbot", globals::weaponBool[0]);
+
+		try_val(j, "aimbot", globals::weaponBool[1]);
+		try_val(j, "aimbot_fov", globals::aimFOV);
+		try_val(j, "aimbot_silent", globals::bSilentAim);
+		try_val(j, "aimbot_distance", globals::distanceAim);
+		try_val(j, "aimbot_target", globals::selectedTarget);
+		try_val(j, "aimbot_threat", globals::bTargetThreat);
+		try_val(j, "aimbot_fov_circ", globals::bFOVCirlce);
+
+		try_val(j, "player_fov", globals::playerFOV);
+
+		read_stream.close();
+
+		config::refresh();
+
+		return true;
+	}
+
+	bool save(std::string name) {
+		if (name.empty())
+			return false;
+
+		auto _path = std::string(path) + "\\" + name + ".json";
+		nlohmann::ordered_json j = nlohmann::ordered_json{
+			{ "chams", globals::visualBool[0] },	
+			{ "chams_vis", globals::visible },
+			{ "chams_hid", globals::hidden },
+			{ "chams_alph", globals::chamsAlpha },
+
+			{ "esp", globals::visualBool[1] },			 
+			{ "esp_clr", globals::espColor },
+			{ "esp_hp_bar", globals::bHealthBar },
+			{ "esp_arm_bar", globals::bArmourBar },
+			{ "esp_text", globals::bHealthText },
+			{ "esp_draw_from", globals::selectedDrawFrom },
+			{ "esp_box", globals::selectedStyle },
+			{ "esp_corner", globals::cornerSize },
+			{ "esp_snaplines", globals::bSnaplines },
+
+			{ "bones", globals::visualBool[2] },		 
+			{ "bones_clr", globals::boneColor },	
+
+			{ "wireframe", globals::visualBool[3] },	
+			{ "wireframe_rbow", globals::bwireRainbow },	
+			{ "wireframe_clr", globals::wireColour },	
+
+			{ "glow", globals::visualBool[4] },			 
+			{ "glow_en_clr", globals::enemyColour },	
+			{ "glow_tm_clr", globals::teamColour },	
+
+			{ "flash", globals::visualBool[5] },		 
+
+			{ "bunny", globals::movementBool[0] },	
+			{ "spin", globals::movementBool[1] },	
+
+			{ "triggerbot", globals::weaponBool[0] },	
+
+			{ "aimbot", globals::weaponBool[1] },	
+			{ "aimbot_fov", globals::aimFOV },
+			{ "aimbot_silent", globals::bSilentAim },
+			{ "aimbot_distance", globals::distanceAim },
+			{ "aimbot_target", globals::selectedTarget },
+			{ "aimbot_threat", globals::bTargetThreat },
+			{ "aimbot_fov_circ", globals::bFOVCirlce },
+
+			{ "player_fov", globals::playerFOV }
+
+		};
+
+		std::ofstream output(_path);
+		output << j.dump(4);
+		output.close();
+
+		if (!std::filesystem::exists(_path))
+			return false;
+
+		config::refresh();
+
+		return true;
+	}
+
+	bool remove(std::string name) {
+		if (name.empty())
+			return false;
+
+		auto _path = std::string(path) + "\\" + name + ".json";
+		if (!std::filesystem::exists(_path))
+			return false;
+
+		std::filesystem::remove(_path);
+		config::refresh();
+
+		return true;
+	}
+
+}
 
 
 
@@ -189,6 +586,8 @@ void gui::SetupMenu(LPDIRECT3DDEVICE9 device) noexcept
 	ImGui_ImplWin32_Init(window);
 	ImGui_ImplDX9_Init(device);
 
+	config::refresh();
+
 	setup = true;
 }
 
@@ -208,6 +607,7 @@ void gui::Destroy() noexcept
 	DestroyDirectX();
 }
 
+
 ImVec4 RainbowColor(float time)
 {
 	const float amplitude = 1.5f;
@@ -217,89 +617,11 @@ ImVec4 RainbowColor(float time)
 	return ImVec4(r, g, b, 1.0f);
 }
 
-float globals::hidden[3] = { 1.f, 0.f, 0.f };
-float globals::visible[3] = { 0.f, 0.f, 1.f };
-float globals::chamsAlpha = 1.f;
+//float euclidean_distance(float x, float y) {
+//	return sqrtf((x * x) + (y * y));
+//}
 
-float globals::enemyColour[3] = { 1.f, 0.f, 0.f };
-float globals::teamColour[3] = { 0.f, 1.f, 0.f };
-
-float globals::wireColour[3] = { 1.f, 1.f, 1.f };
-
-float globals::aimFOV{ 20.f };
-
-//esp
-float globals::espColor[3] = { 1.f, 1.f, 1.f };
-float globals::boneColor[3] = { 1.f, 1.f, 1.f };
-
-//visuals
-bool globals::visualBool[5] = { false, false, false, false, false };
-bool globals::settingsBool[3] = { false, false, false };
-
-bool globals::bHealthBar = false;
-bool globals::bArmourBar = false;
-
-//movement
-bool globals::movementBool[3] = { false, false, false };
-
-//misc
-bool globals::miscBool[1] = { false };
-
-//weapon
-bool globals::weaponBool[3] = { false, false, false };
-
-bool globals::bSnaplines = false;
-bool globals::bHealthText = false;
-bool globals::bFOVCirlce = false;
-
-bool globals::bwireRainbow = false;
-
-static ImVec4 mainColour = ImVec4(255, 0, 255, 0.86);
-
-static bool showMisc = false;
-static bool showVisuals = true;
-static bool showMovement = false;
-static bool showWeapon = false;
-
-//vis
-static bool chamsSetting = false;
-static bool espSetting = false;
-static bool boneESPSetting = false;
-static bool wireFrameSetting = false;
-static bool glowSetting = false;
-
-const char* globals::drawFromItems[] = { "Bottom", "Center" };
-int globals::selectedDrawFrom = 0;
-
-bool globals::boxes = false;
-bool globals::corners = false;
-
-const char* globals::diffStyles[] = { "Box Outline", "Corners" };
-int globals::selectedStyle = 0;
-
-int globals::cornerSize = 20;
-
-//movement
-static bool bhopSettings = false;
-
-//weapon
-static bool aimbotSetting = false;
-
-const char* globals::target[] = { "Head", "Neck", "Chest", "Hip", "L|Hand", "R|Hand", "L|Knee", "R|Knee", "L|Foot", "R|Foot"};
-int globals::selectedTarget = 0;
-int globals::selectedBone = 0;
-
-int globals::targetToBoneIndex[] = { 8, 7, 6, 70, 13, 43, 71, 78, 72, 79  };
-
-float globals::distanceBetweenPlayer = 0;
-
-int globals::playerFOV = 100;
-
-float globals::distanceAim = 500;
-
-float euclidean_distance(float x, float y) {
-	return sqrtf((x * x) + (y * y));
-}
+int index = 0;
 
 void gui::Render() noexcept
 {
@@ -313,12 +635,13 @@ void gui::Render() noexcept
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+	
 	//start
 	ImGui::SetNextWindowSize(ImVec2(1100.0f, 700.0f));
 
 	if (open) {
 
-		ImGui::Begin("CSGO Legacy Hack)", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar);
+		ImGui::Begin("fart.club", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar);
 
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0)); // remove bg
@@ -328,37 +651,29 @@ void gui::Render() noexcept
 		ImGui::PushFont(io.Fonts->Fonts[1]);
 
 		if (ImGui::Button("Visuals")) {
-			showVisuals = true;
-			showMovement = false;
-			showWeapon = false;
-			showMisc = false;
+			index = 0;
 		}
 		if (ImGui::Button("Weapon")) {
-			showVisuals = false;
-			showMovement = false;
-			showWeapon = true;
-			showMisc = false;
+			index = 1;
 		}
 		if (ImGui::Button("Movement")) {
-			showMovement = true;
-			showVisuals = false;
-			showWeapon = false;
-			showMisc = false;
+			index = 2;
 		}
 		if (ImGui::Button("Misc")) {
-			showMovement = false;
-			showVisuals = false;
-			showWeapon = false;
-			showMisc = true;
+			index = 3;
+		}
+		if (ImGui::Button("Config")) {
+			index = 4;
 		}
 
 		ImGui::PopStyleColor();
 		ImGui::PopFont();
+		ImGui::PopStyleVar();
 		ImGui::EndChild();
 
 		ImGui::SetCursorPosX(275);
 
-		if (showVisuals) {
+		if (index == 0) {	//Visuals
 
 			ImGui::SameLine();
 			ImGui::PushFont(io.Fonts->Fonts[1]);
@@ -375,9 +690,7 @@ void gui::Render() noexcept
 			ImGui::TableSetupColumn("title", ImGuiTableColumnFlags_WidthFixed, 190);
 			ImGui::TableSetupColumn("setting", ImGuiTableColumnFlags_WidthFixed);
 
-			const char* visualTitles[5] = { "Chams", "ESP", "Bone ESP", "Wire Frame", "Glow"};
-
-			for (int i = 0; i < 5; i++) {
+			for (int i = 0; i < 6; i++) {
 				ImGui::TableNextRow();
 
 				ImGui::TableSetColumnIndex(0);
@@ -448,10 +761,10 @@ void gui::Render() noexcept
 			ImGui::EndTable();
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 		}
 
-		if (showMovement) {
+		if (index == 2) {
 
 			ImGui::SameLine();
 			ImGui::PushFont(io.Fonts->Fonts[1]);
@@ -468,9 +781,7 @@ void gui::Render() noexcept
 			ImGui::TableSetupColumn("title", ImGuiTableColumnFlags_WidthFixed, 190);
 			ImGui::TableSetupColumn("setting", ImGuiTableColumnFlags_WidthFixed);
 
-			const char* movementTitles[3] = { "Bunny Hop" };
-
-			for (int i = 0; i < 1; i++) {
+			for (int i = 0; i < 2; i++) {
 				ImGui::TableNextRow();
 
 				ImGui::TableSetColumnIndex(0);
@@ -494,10 +805,10 @@ void gui::Render() noexcept
 			ImGui::EndTable();
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 		}
 
-		if (showWeapon) {
+		if (index == 1) {
 
 			ImGui::SameLine();
 			ImGui::PushFont(io.Fonts->Fonts[1]);
@@ -513,8 +824,6 @@ void gui::Render() noexcept
 
 			ImGui::TableSetupColumn("title", ImGuiTableColumnFlags_WidthFixed, 190);
 			ImGui::TableSetupColumn("setting", ImGuiTableColumnFlags_WidthFixed);
-
-			const char* weaponTitles[3] = { "Triggerbot", "Aimbot" };
 
 			for (int i = 0; i < 2; i++) {
 				ImGui::TableNextRow();
@@ -544,9 +853,9 @@ void gui::Render() noexcept
 			ImGui::EndTable();
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 		}
-		if (showMisc) {
+		if (index == 3) {
 
 			ImGui::SameLine();
 			ImGui::PushFont(io.Fonts->Fonts[1]);
@@ -562,8 +871,6 @@ void gui::Render() noexcept
 
 			ImGui::TableSetupColumn("title", ImGuiTableColumnFlags_WidthFixed, 190);
 			ImGui::TableSetupColumn("setting", ImGuiTableColumnFlags_WidthFixed);
-
-			const char* miscTitles[1] = { "FOV" };
 
 			ImGui::SliderInt("FOV", &globals::playerFOV, 40, 200);
 
@@ -590,7 +897,75 @@ void gui::Render() noexcept
 			ImGui::EndTable();
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
+		}
+		if (index == 4) {
+
+			ImGui::SameLine();
+			ImGui::PushFont(io.Fonts->Fonts[1]);
+			ImGui::Text("Config");
+			ImGui::PopFont();
+			ImGui::SameLine();
+			ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
+			ImGui::SetCursorPos(ImVec2(255, 95));
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(20, 20));
+			ImGui::BeginChild("ChildU", ImVec2(330, 584), true, ImGuiWindowFlags_None);
+
+			auto size = config::list.size();
+			for (int i = 0; i < size; i++) {
+				auto cfg_name = config::list[i];
+				bool selected = (i == config::selectedConfig);
+
+				if (ImGui::Selectable(cfg_name.c_str(), &selected))
+					config::selectedConfig = i;
+
+				if (selected)
+					ImGui::SetItemDefaultFocus();
+			}
+
+			static char buffer[64]{};
+
+			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
+			ImGui::InputTextWithHint("##input_text", "Config name:", buffer, sizeof(buffer));
+			ImGui::PopItemWidth();
+
+			if (ImGui::Button("Load", ImVec2(ImGui::GetContentRegionAvail().x / 2, 35.0f))) {
+				if (strlen(buffer) > 1)
+					config::load(buffer);
+				else
+					config::load(config::list[config::selectedConfig]);
+			}
+
+			ImGui::SameLine(0, 3);
+
+			if (ImGui::Button("Save", ImVec2(ImGui::GetContentRegionAvail().x , 35.0f))) {
+				if (strlen(buffer) > 1)
+					config::save(buffer);
+				else
+					config::save(config::list[config::selectedConfig]);
+			}
+
+			if (ImGui::Button("Delete", ImVec2(ImGui::GetContentRegionAvail().x / 2, 35.0f))) {
+				if (strlen(buffer) > 3)
+					config::remove(buffer);
+				else
+					config::remove(config::list[config::selectedConfig]);
+			}
+			ImGui::SameLine(0, 3);
+			if (ImGui::Button("Refresh", ImVec2(ImGui::GetContentRegionAvail().x, 35.0f))) {
+				config::refresh();
+			}
+
+			if (ImGui::Button("Open Folder", ImVec2(ImGui::GetContentRegionAvail().x, 40.0f))) {
+				system("explorer C:\\ProgramData\\fartClub_cfg");
+			}
+
+			if (ImGui::Button("Open / Close Logs", ImVec2(ImGui::GetContentRegionAvail().x, 40.0f))) {
+				bShowLogs = !bShowLogs;
+			}
+
+			ImGui::EndChild();
+			ImGui::PopStyleVar(2);
 		}
 		//chams
 		if (chamsSetting && showVisuals && !espSetting && !boneESPSetting && !bhopSettings && !aimbotSetting && !wireFrameSetting && !glowSetting) {
@@ -613,7 +988,7 @@ void gui::Render() noexcept
 			ImGui::SliderFloat("Alpha", &globals::chamsAlpha, 0.0f, 1.0f, "%.3f");
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 		}//chams//chams	//chams
 		//glow
 		if (glowSetting && showVisuals && !espSetting && !boneESPSetting && !bhopSettings && !aimbotSetting && !wireFrameSetting && !chamsSetting) {
@@ -636,7 +1011,7 @@ void gui::Render() noexcept
 			ImGui::SliderFloat("Alpha", &globals::chamsAlpha, 0.0f, 1.0f, "%.3f");
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 		}
 		//wirefraem
 		if (wireFrameSetting && !chamsSetting && showVisuals && !espSetting && !boneESPSetting && !bhopSettings && !aimbotSetting && !glowSetting) {
@@ -659,7 +1034,7 @@ void gui::Render() noexcept
 			ImGui::PopStyleColor(2);
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 		}
 		//esp
 		if (espSetting && showVisuals && !chamsSetting && !boneESPSetting && !bhopSettings && !aimbotSetting && !wireFrameSetting && !glowSetting) {
@@ -724,7 +1099,7 @@ void gui::Render() noexcept
 			ImGui::SliderInt("Corner Size", &globals::cornerSize, 1, 40);
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 
 		}
 		//bones
@@ -745,7 +1120,7 @@ void gui::Render() noexcept
 
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 
 		}
 		//bhop
@@ -763,7 +1138,7 @@ void gui::Render() noexcept
 			ImGui::Text("No Settings!");
 
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 
 		}
 		//aimbot
@@ -803,102 +1178,100 @@ void gui::Render() noexcept
 
 			globals::selectedBone = globals::targetToBoneIndex[globals::selectedTarget];
 
+			ImGui::PushStyleColor(ImGuiCol_Button, mainColour);
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, mainColour);
+			ImGui::Toggle("Silent", &globals::bSilentAim, ImGuiToggleFlags_Animated);
+			ImGui::Toggle("Target Threat", &globals::bTargetThreat, ImGuiToggleFlags_Animated);
+			ImGui::PopStyleColor(2);
+			ImGui::PopStyleVar(2);
+
 			ImGui::EndChild();
-			ImGui::PopStyleVar();
 
 		}
+	}
+
+	static ExampleAppLog my_log;
+
+	my_log.AddLog("[INFO]", "Test 123 123 keep wogs out\n");
+
+	if (bShowLogs) {
+		my_log.Draw("Logs");
 	}
 
 	int centerX = screenWidth / 2;
 	int centerY = screenHeight / 2;
 
-	// Calculate FOV circle radius
 	float fov = globals::aimFOV * (3.14159265359f / 180.0f);
 	float radius = tanf(fov / 2) * screenHeight;
 
-	// Draw the FOV circle using ImGui
+	
 	ImDrawList* drawList = ImGui::GetForegroundDrawList();
 
 	if (globals::bFOVCirlce) {
 		drawList->AddCircle(ImVec2(centerX, centerY), radius, ImColor(255, 0, 0, 255), 64, 2.0f);
 	}
 
+	ImFont* font = ImGui::GetFont(); 
+	float fontSize = 16.0f;
 
-	if (globals::localPlayer && interfaces::engine->IsInGame())
-	{
-		ImFont* font = ImGui::GetFont(); // Get the current font
-		float fontSize = 16.0f;
+	ImU32 textColor = IM_COL32_WHITE; 
 
-		globals::localPlayer->playerFOV() = globals::playerFOV;
-		std::cout << globals::localPlayer->playerFOV();
+	const char* allTitles[] = {
+		visualTitles[0], visualTitles[1], visualTitles[2], visualTitles[3], visualTitles[4], visualTitles[5],
+		movementTitles[0], movementTitles[1],
+		weaponTitles[0], weaponTitles[1]
+	};
 
-		for (int i = 1; i < interfaces::globals->maxClients; ++i)
-		{
-			CEntity* entity = interfaces::entityList->GetEntityFromIndex(i);
+	int totalTitles = sizeof(allTitles) / sizeof(allTitles[0]);
 
-			if (!entity)
-				continue;
+	struct TitleInfo {
+		const char* title;
+		int index;
+	};
 
-			if (entity->IsDormant() || !entity->IsAlive())
-				continue;
+	TitleInfo titleInfos[10];
 
-			if (entity->GetTeam() == globals::localPlayer->GetTeam())
-				continue;
+	for (int i = 0; i < totalTitles; ++i) {
+		titleInfos[i].title = allTitles[i];
+		titleInfos[i].index = i;
+	}
 
-			if (!globals::localPlayer->IsAlive())
-				if (globals::localPlayer->GetObserverTarget() == entity)
-					continue;
+	std::sort(titleInfos, titleInfos + totalTitles, [](const TitleInfo& a, const TitleInfo& b) {
+		return std::strlen(b.title) < std::strlen(a.title);
+	});
 
-			CMatrix3x4 bones[128];
-			if (!entity->SetupBones(bones, 128, 0x7FF00, interfaces::globals->currentTime))
-				continue;
+	float enabledFontSz = 30.0f;
 
-			CVector top;
-			if (interfaces::debugOverlay->ScreenPosition(bones[8].Origin() + CVector{ 0.f, 0.f, 11.f }, top))
-				continue;
+	int count = 0;
+	for (int i = 0; i < totalTitles; ++i) {
+		int originalIndex = titleInfos[i].index;
 
-			CVector bottom;
-			if (interfaces::debugOverlay->ScreenPosition(entity->GetAbsOrigin() - CVector{ 0.f, 0.f, 9.f }, bottom))
-				continue;
+		if ((originalIndex < 6 && globals::visualBool[originalIndex]) ||
+			(originalIndex >= 6 && originalIndex < 8 && globals::movementBool[originalIndex - 6]) ||
+			(originalIndex >= 8 && originalIndex < 10 && globals::weaponBool[originalIndex - 8])) {
 
-			//boxes
-			const float h = bottom.y - top.y; const float w = h * 0.3f;
+			const char* text = allTitles[originalIndex];
+			ImVec2 textSize = ImGui::CalcTextSize(text);
 
-			float localPX = globals::localPlayer->GetAbsOrigin().x;
-			float localPY = globals::localPlayer->GetAbsOrigin().y;
-			float entX = entity->GetAbsOrigin().x;
-			float entY = entity->GetAbsOrigin().y;
+			ImVec2 textPosition = ImVec2(100, 100 + count * enabledFontSz);
 
-			int distance = static_cast<int>(euclidean_distance(entX - localPX, entY - localPY) * 0.0254f);
+			drawList->AddText(font, enabledFontSz, textPosition, textColor, text);
 
-			const auto left = static_cast<int>(top.x - w); const auto right = static_cast<int>(top.x + w);
-			int health = 0;
-			health = entity->GetHealth();
-			if (globals::bHealthText && globals::visualBool[1]) {
-				try {
-					std::string healthText = std::to_string(health);
-					std::string distanceText = std::to_string(distance);
-
-					ImVec2 textPosition(left, top.y - 20);
-					ImU32 textColor = IM_COL32_WHITE;
-
-					if (entity->IsDormant() || !entity->IsAlive())
-						continue;
-
-					drawList->AddText(font, fontSize, textPosition, textColor, healthText.c_str());
-					drawList->AddText(font, fontSize, ImVec2(left + 30, top.y - 20), textColor, distanceText.c_str());
-				}
-				catch (const std::exception& e) {
-
-				}
-			}
+			count++;
 		}
 	}
 
-	
+	//Radar();
 
 	ImGui::GetStyle().Colors[ImGuiCol_TabHovered] = mainColour;
 	ImGui::GetStyle().Colors[ImGuiCol_Border] = mainColour;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 15.f); // Round borders
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(43.f / 255.f, 43.f / 255.f, 43.f / 255.f, 100.f / 255.f)); // Background color
+	ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(10.f / 255.f, 10.f / 255.f, 10.f / 255.f, 100.f / 255.f)); // border color
+	ImGui::RenderNotifications(); // <-- Here we render all notifications
+	ImGui::PopStyleVar();
+	ImGui::PopStyleColor(2);
 
 	ImGui::End();
 
@@ -934,3 +1307,4 @@ LRESULT CALLBACK WindowProcess(
 		longParam
 	);
 }
+

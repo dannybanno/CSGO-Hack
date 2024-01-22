@@ -11,13 +11,17 @@
 void start() {
 	DiscordEventHandlers Handler;
 	memset(&Handler, 0, sizeof(Handler));
-	Discord_Initialize("CLIENT ID", &Handler, 1, NULL);
+	Discord_Initialize("1164266235953938572", &Handler, 1, NULL);
 }
 
 void update() {
 	DiscordRichPresence discordPresence;
 	memset(&discordPresence, 0, sizeof(discordPresence));
 	while(true){
+		//CEntity* entity = interfaces::entityList->GetEntityFromIndex(2);
+		//if (interfaces::engine->IsInGame() && globals::localPlayer) {
+		//	discordPresence.state = globals::localPlayer->name;
+		//}
 		discordPresence.details = "Danny's CSGO Cheat";
 		discordPresence.startTimestamp = 1507665886;
 		discordPresence.largeImageKey = "me_2_";
@@ -29,9 +33,9 @@ void update() {
 // setup our cheat & unload it when exit key is pressed
 DWORD WINAPI Setup(LPVOID lpParam)
 {
-	//AllocConsole();                                 //
-	//FILE* file;									  //	Opens Console
-	//freopen_s(&file, "CONOUT$", "w", stdout);	      //
+	AllocConsole();
+	FILE* file;
+	freopen_s(&file, "CONOUT$", "w", stdout);
 
 	memory::Setup();		// find signatures
 	interfaces::Setup();    // capture interfaces

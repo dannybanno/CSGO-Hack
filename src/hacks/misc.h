@@ -8,4 +8,6 @@ namespace hacks
 	bool TriggerBot(CUserCmd* cmd) noexcept;
 
 	void RunAimbot(CUserCmd* cmd) noexcept;
+
+	void RunSpinbot(CUserCmd* cmd) noexcept;
 }
