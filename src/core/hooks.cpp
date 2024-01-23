@@ -236,13 +236,6 @@ void __stdcall hooks::DrawModel(
 	if (globals::localPlayer && info.renderable && interfaces::engine->IsInGame()) {
 		CEntity* entity = info.renderable->GetIClientUnknown()->GetBaseEntity();
 
-		std::string pszModelName = interfaces::modelInfo->GetModelName(info.pModel);
-
-		if (pszModelName.find("models/player")) {
-			//std::cout << pszModelName;
-		}
-
-
 		if (globals::localPlayer && entity && !entity->IsPlayer() && globals::visualBool[3]) {
 			constexpr float wireColour[3] = { 1.f, 1.f, 1.f };
 
@@ -561,22 +554,6 @@ void __stdcall hooks::PaintTraverse(std::uintptr_t vguiPanel, bool forceRepaint,
 				if (!entity->m_hObserverTarget())
 					continue;
 
-
-				//CEntity* target = entity->m_hObserverTarget();
-				//
-				//if (!target->IsPlayer())
-				//	continue;
-				//
-				//PlayerInfo entityinfo ;
-				//PlayerInfo targetinfo ;
-				//
-				//interfaces::engine->GetPlayerInfo(i, &entityinfo);
-				//interfaces::engine->GetPlayerInfo(i, &targetinfo);
-				//
-				//spectators += std::string(entityinfo.name) + " > " + targetinfo.name + "\n";
-				//
-				//Text22(10, 200, Color(255, 255, 255, 255), spectators.c_str());
-
 			}
 
 			for (int i = 1; i <= interfaces::globals->maxClients; ++i)
@@ -654,7 +631,7 @@ void __stdcall hooks::PaintTraverse(std::uintptr_t vguiPanel, bool forceRepaint,
 					else {
 						interfaces::surface->DrawSetColor(0, 255, 0, 255);
 					}
-
+					//custom colour nit vischecks
 					//interfaces::surface->DrawSetColor(
 					//	static_cast<int>(globals::espColor[0] * 255),
 					//	static_cast<int>(globals::espColor[1] * 255),
