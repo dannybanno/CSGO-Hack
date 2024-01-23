@@ -44,33 +44,6 @@ bool hacks::TriggerBot(CUserCmd* cmd) noexcept {
 
 bool shoot = false;
 
-void CorrectMovement(CVector vOldAngles, CUserCmd* cmd, float fOldForward, float fOldSidemove)
-{
-	//side/forward move correction
-	float deltaView = cmd->viewAngles.y - vOldAngles.y;
-	float f1;
-	float f2;
-
-	if (vOldAngles.y < 0.f)
-		f1 = 360.0f + vOldAngles.y;
-	else
-		f1 = vOldAngles.y;
-
-	if (cmd->viewAngles.y < 0.0f)
-		f2 = 360.0f + cmd->viewAngles.y;
-	else
-		f2 = cmd->viewAngles.y;
-
-	if (f2 < f1)
-		deltaView = abs(f2 - f1);
-	else
-		deltaView = 360.0f - abs(f1 - f2);
-	deltaView = 360.0f - deltaView;
-
-	cmd->forwardMove = cos(DEG2RAD(deltaView)) * fOldForward + cos(DEG2RAD(deltaView + 90.f)) * fOldSidemove;
-	cmd->sideMove = sin(DEG2RAD(deltaView)) * fOldForward + sin(DEG2RAD(deltaView + 90.f)) * fOldSidemove;
-}
-
 void hacks::RunSpinbot(CUserCmd* cmd) noexcept {
 
 	if (!(cmd->buttons & CUserCmd::IN_ATTACK)) {
@@ -81,15 +54,6 @@ void hacks::RunSpinbot(CUserCmd* cmd) noexcept {
 }
 
 void hacks::RunAimbot(CUserCmd* cmd) noexcept {
-
-	//globals::localPlayer->observerMode() = 1;
-	//globals::localPlayer->viewOffset().x = globals::localPlayer->thirdViewOffset().x;
-	//globals::localPlayer->viewOffset().y = globals::localPlayer->thirdViewOffset().y;
-	//globals::localPlayer->viewOffset().z = globals::localPlayer->thirdViewOffset().z;
-	//interfaces::engine->SetViewAngles(globals::localPlayer->thirdViewOffset());
-
-	//interfaces::engine->SetViewAngles(cmd->viewAngles + CVector(10, 360));
-	//cmd->viewAngles = cmd->viewAngles + CVector(10, 180);
 
 	if (!(cmd->buttons & CUserCmd::IN_ATTACK))
 		return;
